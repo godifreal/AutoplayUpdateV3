@@ -1,0 +1,201 @@
+-- GUI: Multi Spawn Control (ULTRA VISUAL PRO)
+-- By @TheMugenKing (Updated)
+
+local Players = game:GetService("Players")
+local StarterGui = game:GetService("StarterGui")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+-- Customizable color scheme
+local colors = {
+    frameBg       = Color3.fromRGB(30, 30, 30),
+    gradientStart = Color3.fromRGB(255, 100, 100),
+    gradientEnd   = Color3.fromRGB(255, 150, 50),
+    btnBg         = Color3.fromRGB(60, 60, 60),
+    btnHoverBg    = Color3.fromRGB(100, 100, 100),
+    strokeColor   = Color3.fromRGB(200, 200, 200),
+    toggleBg      = Color3.fromRGB(80, 80, 120),
+}
+
+getgenv().SpawnList = getgenv().SpawnList or {}
+getgenv().LoopSpawns = false
+
+local function createGUI()
+    if PlayerGui:FindFirstChild("MultiSpawnGUI") then
+        PlayerGui.MultiSpawnGUI:Destroy()
+    end
+
+    local gui = Instance.new("ScreenGui", PlayerGui)
+    gui.Name = "MultiSpawnGUI"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+
+    local mainFrame = Instance.new("Frame", gui)
+    mainFrame.Size = UDim2.new(0, 340, 0, 290)
+    mainFrame.Position = UDim2.new(0.5, -170, 0.5, -145)
+    mainFrame.BackgroundColor3 = colors.frameBg
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Active = true
+    mainFrame.Draggable = true
+    Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 14)
+
+    local bgGradient = Instance.new("UIGradient", mainFrame)
+    bgGradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, colors.gradientStart),
+        ColorSequenceKeypoint.new(1, colors.gradientEnd)
+    }
+    bgGradient.Rotation = 45
+
+    local title = Instance.new("TextLabel", mainFrame)
+    title.Size = UDim2.new(1, 0, 0, 40)
+    title.BackgroundTransparency = 1
+    title.Text = "Multi Spawn Control"
+    title.Font = Enum.Font.GothamBold
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.TextSize = 22
+
+    local scroll = Instance.new("ScrollingFrame", mainFrame)
+    scroll.Size = UDim2.new(1, -20, 1, -60)
+    scroll.Position = UDim2.new(0, 10, 0, 50)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 5
+    scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+
+    local scrollLayout = Instance.new("UIListLayout", scroll)
+    scrollLayout.Padding = UDim.new(0, 6)
+    scrollLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local clickSound = Instance.new("Sound", gui)
+    clickSound.SoundId = "rbxassetid://9118828563"
+    clickSound.Volume = 1.6
+
+    local function createButton(text, callback)
+        local btn = Instance.new("TextButton", scroll)
+        btn.Size = UDim2.new(1, 0, 0, 40)
+        btn.BackgroundColor3 = colors.btnBg
+        btn.TextColor3 = Color3.new(1, 1, 1)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 15
+        btn.Text = text
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
+
+        local stroke = Instance.new("UIStroke", btn)
+        stroke.Color = colors.strokeColor
+        stroke.Thickness = 1
+
+        btn.MouseEnter:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = colors.btnHoverBg }):Play()
+        end)
+        btn.MouseLeave:Connect(function()
+            TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = colors.btnBg }):Play()
+        end)
+
+        btn.MouseButton1Click:Connect(function()
+            clickSound:Play()
+            callback()
+        end)
+    end
+
+    -- BUTTONS SETUP
+    createButton("➕ Set Spawn Position", function()
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            table.insert(getgenv().SpawnList, hrp.Position)
+            StarterGui:SetCore("SendNotification", { Title = "Spawn Ditambahkan!", Text = "Total: " .. #getgenv().SpawnList, Duration = 3 })
+        end
+    end)
+
+    createButton("▶️ Play All Spawns", function()
+        if #getgenv().SpawnList == 0 then return end
+        for _, pos in ipairs(getgenv().SpawnList) do
+            task.wait(0.4)
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hum = char:FindFirstChild("Humanoid")
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hum and hrp and hum.Health > 0 then
+                hrp.CFrame = CFrame.new(pos)
+            end
+        end
+    end)
+
+    createButton("🧭 Ke Spawn Terakhir", function()
+        local last = getgenv().SpawnList[#getgenv().SpawnList]
+        if not last then return end
+        local char = player.Character or player.CharacterAdded:Wait()
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then hrp.CFrame = CFrame.new(last) end
+    end)
+
+    createButton("🔁 Loop Spawns", function()
+        if #getgenv().SpawnList == 0 then return end
+        getgenv().LoopSpawns = true
+        task.spawn(function()
+            while getgenv().LoopSpawns do
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hum = char:FindFirstChild("Humanoid")
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if not hum or hum.Health <= 0 then break end
+                for _, pos in ipairs(getgenv().SpawnList) do
+                    if not getgenv().LoopSpawns then break end
+                    if hrp then hrp.CFrame = CFrame.new(pos) end
+                    task.wait(0.5)
+                end
+            end
+        end)
+    end)
+
+    createButton("🚫 Hentikan Loop", function()
+        getgenv().LoopSpawns = false
+    end)
+
+    createButton("📋 Copy Spawn Script", function()
+        if #getgenv().SpawnList == 0 then return end
+        local header = "-- Generated by @TheMugenKing\nlocal hrp = game:GetService('Players').LocalPlayer.Character:WaitForChild('HumanoidRootPart')\nlocal SpawnList = {\n"
+        local body = ""
+        for _, pos in ipairs(getgenv().SpawnList) do
+            body = body .. string.format("    Vector3.new(%.2f, %.2f, %.2f),\n", pos.X, pos.Y, pos.Z)
+        end
+        local footer = "}\nfor _, pos in ipairs(SpawnList) do task.wait(0.4) hrp.CFrame = CFrame.new(pos)\nend"
+        if setclipboard then
+            setclipboard(header .. body .. footer)
+            StarterGui:SetCore("SendNotification", { Title = "Script Disalin!", Text = "Spawn dicopy ke clipboard.", Duration = 3 })
+        end
+    end)
+
+    createButton("🗑️ Hapus Semua Spawn", function()
+        getgenv().SpawnList = {}
+        StarterGui:SetCore("SendNotification", { Title = "Dihapus", Text = "Spawn list kosong.", Duration = 3 })
+    end)
+
+    createButton("♻️ Respawn Karakter", function()
+        player:LoadCharacter()
+    end)
+
+    scrollLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scroll.CanvasSize = UDim2.new(0, 0, 0, scrollLayout.AbsoluteContentSize.Y)
+    end)
+
+    local toggleBtn = Instance.new("TextButton", gui)
+    toggleBtn.Size = UDim2.new(0, 80, 0, 30)
+    toggleBtn.Position = UDim2.new(1, -90, 1, -40)
+    toggleBtn.Text = "Close"
+    toggleBtn.BackgroundColor3 = colors.toggleBg
+    toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 14
+    Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        mainFrame.Visible = not mainFrame.Visible
+        toggleBtn.Text = mainFrame.Visible and "Close" or "Open"
+    end)
+end
+
+createGUI()
+
+Players.LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    createGUI()
+end)
